@@ -1,0 +1,93 @@
+---
+title: "Opiod Crisis"
+output: html_document
+date: '2022-12-04'
+---
+
+```{r setup, include=FALSE}
+## Web Scraping for US Population
+library(xml2)
+library(rvest)
+library(pacman)
+library("tibble")
+library(plyr)
+library(xml2)
+library(janitor)
+library(readxl)
+library(DataExplorer)
+
+## US States by Population CSV
+base_url = "https://simple.wikipedia.org/wiki/List_of_U.S._states_by_population"
+page = read_html(base_url)
+
+page_name = page %>% html_nodes(".headerSort , td") %>% html_text()
+
+population_table = page %>% html_nodes("table") %>% html_table() %>% .[[1]]
+
+state_pop = tibble (population_table$State,population_table$`Population estimate, July 1, 2019[2]`)
+state_pop <- state_pop [c(1:30,32:52),]
+write.csv(state_pop, "statepop.csv")
+
+## Rename Portion using PLYR package
+state_pop %>% clean_names() -> state_pop
+names(state_pop)
+?rename
+rename(state_pop, c("population_table_state" = "Location",
+       "population_table_population_estimate_july_1_2019_2" = "Population")) -> state_pop
+
+names(state_pop)
+
+## US Deaths for Opiods
+url = "https://www.cdc.gov/drugoverdose/deaths/2020.html"
+
+deaths_table = read.csv('/Users/brandonrothwell/Downloads/DrugStats.csv', header = TRUE)
+deaths_table <- deaths_table [1:51,c(1,4)]
+
+deaths_table
+names(deaths_table)
+
+death_tibble = tibble (deaths_table$Location, deaths_table$X2019.Number.of.Deaths)
+names(death_tibble)
+rename(death_tibble, c("deaths_table$X2019.Number.of.Deaths" = "Number of Deaths", 
+                       "deaths_table$Location" = "Location")) -> death_tibble
+
+death_tibble
+stat <- merge(x=state_pop, y=death_tibble, by ='Location', all.x = TRUE)
+
+names(stat)
+
+## Education Statistics
+edu = read_excel("/Users/brandonrothwell/Downloads/IncomeStats.xls")
+
+income_table = tibble(edu$`Table 102.30. Median household income, by state: Selected years, 1990 through 2019`,edu$...18)
+income_table <- income_table [5:55,]
+income_table <- clean_names(income_table)
+names(income_table)
+rename(income_table, c("edu" = "Location", 
+                       "edu_18" = "Median Household Income")) -> income_table
+
+
+stat <- merge(x=stat, y=income_table, by ='Location', all.x = TRUE)
+
+stat
+```
+
+
+```{r }
+data_list <- list(state_pop, death_tibble, income_table)
+plot_str(data_list)
+```
+
+
+```{r}
+introduce(stat)
+```
+
+```{r}
+plot_intro(stat)
+```
+
+```{r}
+plot_missing(stat)
+```
+
